@@ -82,7 +82,7 @@ using Growl.Connector;
 namespace NLog.Targets
 {
 	[NLog.Targets.Target("GrowlNotify")]
-	public class GrowlNotify : NLog.Targets.Target
+	public class GrowlNotify : NLog.Targets.TargetWithLayout
 	{
 		// growl connector
 		private GrowlConnector growl;
@@ -106,6 +106,7 @@ namespace NLog.Targets
 		public string Password { get; set; }
 		public string Host { get; set; }
 		public int Port { get; set; }
+        public string applicationName { get; set; }
 
 		private void RegisterApplication()
 		{
@@ -114,17 +115,22 @@ namespace NLog.Targets
 			else
 				growl = new GrowlConnector(Password, Host, Port);
 
+            if (string.IsNullOrEmpty(applicationName))
+                applicationName = "NLog";
+       
+
+
 			growl.EncryptionAlgorithm = Cryptography.SymmetricAlgorithmType.PlainText;
 
-			application = new Application("NLog");
+			application = new Application(applicationName);
 			application.Icon = GetIconData(GrowlNotifyResources.NLog);
 
-			trace = new NotificationType("Trace", "NLog Trace", GetIconData(GrowlNotifyResources.Trace), true);
-			debug = new NotificationType("Debug", "NLog Debug", GetIconData(GrowlNotifyResources.Debug), true);
-			info = new NotificationType("Info", "NLog Info", GetIconData(GrowlNotifyResources.Info), true);
-			warn = new NotificationType("Warn", "NLog Warn", GetIconData(GrowlNotifyResources.Warn), true);
-			error = new NotificationType("Error", "NLog Error", GetIconData(GrowlNotifyResources.Error), true);
-			fatal = new NotificationType("Fatal", "NLog Fatal", GetIconData(GrowlNotifyResources.Fatal), true);
+			trace = new NotificationType("Trace", applicationName+" Trace", GetIconData(GrowlNotifyResources.Trace), true);
+            debug = new NotificationType("Debug", applicationName + " Debug", GetIconData(GrowlNotifyResources.Debug), true);
+            info = new NotificationType("Info", applicationName + " Info", GetIconData(GrowlNotifyResources.Info), true);
+            warn = new NotificationType("Warn", applicationName + " Warn", GetIconData(GrowlNotifyResources.Warn), true);
+            error = new NotificationType("Error", applicationName + " Error", GetIconData(GrowlNotifyResources.Error), true);
+            fatal = new NotificationType("Fatal", applicationName + " Fatal", GetIconData(GrowlNotifyResources.Fatal), true);
 
 			growl.Register(application, new NotificationType[] { trace, debug, info, warn, error, fatal });
 		}
@@ -133,7 +139,14 @@ namespace NLog.Targets
 		{
 			if (growl == null) RegisterApplication();
 
-			var notification = new Notification(application.Name, logEvent.Level.ToString(), null, string.Concat(logEvent.Level, ":", logEvent.LoggerName), logEvent.FormattedMessage.Replace("\r\n", "\n"));
+            string logMessage = this.Layout.Render(logEvent); 
+
+            if (String.IsNullOrEmpty(logMessage)){
+                logMessage = logEvent.FormattedMessage;
+            }
+  
+            
+			var notification = new Notification(application.Name, logEvent.Level.ToString(), null, string.Concat(logEvent.Level, ":", logEvent.LoggerName), logMessage.Replace("\r\n", "\n"));
 			growl.Notify(notification);
 		}
 
